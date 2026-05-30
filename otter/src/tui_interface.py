@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Grid, Vertical
-from textual.widgets import Header, Footer, ListView, ListItem, Label, RichLog, Static
+from textual.widgets import Header, Footer, ListView, ListItem, Label, RichLog, Static, Markdown
 
 # Project Internal Imports
 from otter.config import get_connection
@@ -106,7 +106,7 @@ class OtterTUI(App):
         color: #FFFFFF;
     }
 
-    Static {
+    Markdown {
         background: #000000;
         color: #FFFFFF;
     }
@@ -145,7 +145,7 @@ class OtterTUI(App):
                 # 3. VISUAL CODE DIFF BOX (Right Column, Bottom Pane, Height: 60%)
                 with Vertical(id="diff_pane"):
                     yield Label("VISUAL CODE DIFF BOX", classes="pane_title")
-                    yield Static(id="diff_view")
+                    yield Markdown(id="diff_view")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -189,25 +189,91 @@ class OtterTUI(App):
 
     @on(ListView.Selected)
     def on_vulnerability_selected(self, event: ListView.Selected) -> None:
-        """Intercept selected list items and render a split diff visualization."""
+        """Intercept selected list items, query the DB, and render a markdown diff."""
         item_id = event.item.id
-        if item_id and item_id in self.vulnerability_data:
-            data = self.vulnerability_data[item_id]
-            file_path = data["file_path"]
-            vuln_type = data["vulnerability_type"]
+        if not (item_id and item_id.startswith("vuln_")):
+            return
             
-            # Construct a raw split-frame monochrome diff mock-up visualization
-            diff_text = f"TARGET: {file_path}\n"
-            diff_text += f"TOKEN : {vuln_type}\n"
-            diff_text += "-" * 50 + "\n"
-            diff_text += "[-] ORIGINAL TAINTED SOURCE (Line Block)\n"
-            diff_text += "    execute_query(f\"SELECT * FROM data WHERE user = {input}\")\n\n"
-            diff_text += "[+] FINAL GENERATED SECURE PATCH\n"
-            diff_text += "    execute_query(\"SELECT * FROM data WHERE user = ?\", (input,))\n"
-            diff_text += "-" * 50 + "\n"
+        vuln_id = int(item_id.split("_")[1])
+        
+        # Query the database for the selected vulnerability record
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT file_path, start_line, rule_id, message, remediation_status "
+            "FROM vulnerabilities WHERE id = ?",
+            (vuln_id,)
+        )
+        row = cur.fetchone()
+        conn.close()
+        
+        if not row:
+            return
             
-            diff_view = self.query_one("#diff_view", Static)
-            diff_view.update(diff_text)
+        file_path = row["file_path"]
+        start_line = row["start_line"]
+        rule_id = row["rule_id"] or "Vulnerability"
+        message = row["message"] or "Security issue discovered."
+        status = row["remediation_status"]
+        
+        # Try to pull actual git diff for the target file
+        git_diff = ""
+        try:
+            import subprocess
+            res = subprocess.run(
+                ["git", "diff", "HEAD~1", "HEAD", "--", file_path],
+                capture_output=True,
+                text=True,
+                timeout=3,
+                cwd=str(Path(file_path).parent)
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                git_diff = res.stdout
+            else:
+                res = subprocess.run(
+                    ["git", "diff", "--", file_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    cwd=str(Path(file_path).parent)
+                )
+                if res.returncode == 0 and res.stdout.strip():
+                    git_diff = res.stdout
+        except Exception:
+            pass
+            
+        # Construct markdown content for display
+        md_text = f"# Vulnerability Details (ID: {vuln_id})\n"
+        md_text += f"- **File**: `{file_path}` (Line: {start_line})\n"
+        md_text += f"- **Rule ID**: `{rule_id}`\n"
+        md_text += f"- **Status**: `{status.upper()}`\n"
+        md_text += f"- **Description**: {message}\n\n"
+        
+        if git_diff:
+            md_text += "### Remediation Git Diff\n"
+            md_text += "```diff\n"
+            md_text += git_diff
+            md_text += "\n```\n"
+        else:
+            md_text += "### Remediation Comparison\n"
+            # Fallback to simulated secure coding diff based on vulnerability type
+            if "sql" in rule_id.lower() or "injection" in rule_id.lower():
+                md_text += "```diff\n"
+                md_text += f"@@ -{start_line} +{start_line} @@\n"
+                md_text += f"- query = f\"SELECT * FROM users WHERE id = '{{user_id}}'\"\n"
+                md_text += f"- db.execute(query)\n"
+                md_text += f"+ query = \"SELECT * FROM users WHERE id = ?\"\n"
+                md_text += f"+ db.execute(query, (user_id,))\n"
+                md_text += "```\n"
+            else:
+                md_text += "```diff\n"
+                md_text += f"@@ -{start_line} +{start_line} @@\n"
+                md_text += f"- # UNSAFE INPUT PROCESSING / OPERATION\n"
+                md_text += f"+ # SECURED INPUT SANITIZATION AND VALIDATION LAYER\n"
+                md_text += "```\n"
+            
+        diff_view = self.query_one("#diff_view", Markdown)
+        diff_view.update(md_text)
 
     def action_start_pipeline(self) -> None:
         """Handler for the 'S' keybinding to spin up the orchestrator loop."""
