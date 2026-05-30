@@ -1,0 +1,5 @@
+textual==0.85.0
+python-gitlab==4.4.0
+openinference-instrumentation==0.1.7
+opentelemetry-sdk==1.22.0
+arize-phoenix-otel==0.1.0
