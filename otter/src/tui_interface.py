@@ -8,7 +8,6 @@ from textual.containers import Grid, Vertical, Horizontal
 from textual.screen import ModalScreen
 from textual import work, on
 from textual.reactive import reactive
-from textual.events import Click
 
 WORKSPACE = "/home/krish/GoogleRA"
 DB_PATH = "/home/krish/GoogleRA/secure_flow.db"
@@ -587,9 +586,9 @@ class OtterCockpit(App):
 
         self.push_screen(CommandPalette(), handle_command)
 
-    @on(Click, "#status")
-    def on_status_clicked(self, event: Click) -> None:
-        self.action_show_palette()
+    def on_click(self, event) -> None:
+        if getattr(event, "widget", None) and event.widget.id == "status":
+            self.action_show_palette()
 
     def action_toggle_maximize(self) -> None:
         focused = self.focused
