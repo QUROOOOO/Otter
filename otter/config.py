@@ -1,7 +1,7 @@
 """Otter configuration and database initialization.
 
 This module creates and initializes a local SQLite database named
-`otter.db` located next to this file. It enables foreign keys and
+`secure_flow.db` located at the project root. It enables foreign keys and
 provides helper functions to obtain connections configured with
 `PRAGMA foreign_keys = ON;`.
 
@@ -21,8 +21,8 @@ from typing import Optional
 
 LOG = logging.getLogger(__name__)
 
-# Database file next to this module
-DB_PATH: Path = Path(__file__).parent / "otter.db"
+# Database file at the project root (two levels up from otter/config.py)
+DB_PATH: Path = Path(__file__).resolve().parent.parent / "secure_flow.db"
 
 
 def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:

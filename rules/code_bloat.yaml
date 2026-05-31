@@ -1,0 +1,13 @@
+rules:
+  - id: python-eval-code-bloat-or-safety
+    patterns:
+      - pattern: eval(...)
+    message: "Detected use of eval(), which can allow arbitrary code execution and leads to code bloat/safety issues."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      owasp:
+        - A03:2021 - Injection

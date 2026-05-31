@@ -1,0 +1,50 @@
+rules:
+  - id: python-string-format-sql-injection
+    patterns:
+      - pattern-either:
+          # Direct f-string execution
+          - pattern: $CURSOR.execute(f"...{$VAR}...")
+          # Direct format execution
+          - pattern: $CURSOR.execute("...".format(...))
+          # Direct percent formatting execution
+          - pattern: $CURSOR.execute("..." % ...)
+          # String concatenation execution
+          - pattern: $CURSOR.execute($X + ...)
+          # Variable assignment followed by execute
+          - pattern: |
+              $QUERY = f"...{$VAR}..."
+              ...
+              $CURSOR.execute($QUERY)
+          - pattern: |
+              $QUERY = "...".format(...)
+              ...
+              $CURSOR.execute($QUERY)
+          - pattern: |
+              $QUERY = "..." % ...
+              ...
+              $CURSOR.execute($QUERY)
+          - pattern: |
+              $QUERY = $X + ...
+              ...
+              $CURSOR.execute($QUERY)
+    message: >-
+      Detected SQL query built using string formatting with variable data.
+      This is vulnerable to SQL injection attacks. Use parameterized queries
+      with placeholder syntax (e.g., `cursor.execute("SELECT * FROM t WHERE id = ?", (val,))`)
+      instead of interpolating user input directly into the query string.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe:
+        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp:
+        - A03:2021 - Injection
+      confidence: HIGH
+      impact: HIGH
+      technology:
+        - python
+        - sqlite3
+      references:
+        - https://owasp.org/Top10/A03_2021-Injection/
+        - https://cwe.mitre.org/data/definitions/89.html

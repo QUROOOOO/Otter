@@ -59,7 +59,8 @@ def main() -> None:
 
     # Step 1: Initialize ProductionScanEngine, execute security scan, and retrieve the session_id
     scan_engine = ProductionScanEngine(workspace_root)
-    session_id = scan_engine.run_scan()
+    rules_config = "rules" if (workspace_root / "rules").is_dir() else None
+    session_id = scan_engine.run_scan(rules_config)
     session_id_str = str(session_id)
     LOG.info("Scan execution complete. Session ID: %s", session_id_str)
 

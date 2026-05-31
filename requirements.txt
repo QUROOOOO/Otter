@@ -1,5 +1,19 @@
-textual==0.85.0
-python-gitlab==4.4.0
-openinference-instrumentation==0.1.7
-opentelemetry-sdk==1.22.0
-arize-phoenix-otel==0.1.0
+# ──── Otter Security Pipeline: Core Dependencies ────
+# Scanning
+semgrep>=1.60.0
+
+# AI Patching (Gemini API via raw HTTP)
+requests>=2.31.0
+
+# GitLab VCS Automation
+python-gitlab>=4.4.0
+
+# TUI Dashboard
+textual>=0.85.0
+
+# Telemetry & Observability
+opentelemetry-sdk>=1.22.0
+opentelemetry-exporter-otlp-proto-http>=1.22.0
+opentelemetry-instrumentation-requests>=0.43b0
+openinference-instrumentation>=0.1.7
+arize-phoenix[evals]>=8.0.0
